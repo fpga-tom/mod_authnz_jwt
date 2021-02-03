@@ -10,6 +10,7 @@ ARG MOD_AUTHNZ_JWT_VERSION=1.2.0
 
 RUN git clone https://github.com/benmcollins/libjwt.git && \
     cd libjwt && \
+	git checkout tags/v$LIBJWT_VERSION
     autoreconf -i && \
     ./configure && \
     make && \
@@ -17,7 +18,6 @@ RUN git clone https://github.com/benmcollins/libjwt.git && \
 
 RUN git clone https://github.com/fpga-tom/mod_authnz_jwt.git && \
     cd mod_authnz_jwt && \
-    git checkout tags/v$MOD_AUTHNZ_JWT_VERSION && \
     autoreconf -ivf && \
     PKG_CONFIG_PATH=/usr/local ./configure && \
     make && \
