@@ -41,6 +41,7 @@
 #include "mod_auth.h"
 
 #define JWT_LOGIN_HANDLER "jwt-login-handler"
+#define JWT_CDN_HANDLER "jwt-cdn-handler"
 #define JWT_LOGOUT_HANDLER "jwt-login-handler"
 #define USER_INDEX 0
 #define PASSWORD_INDEX 1
@@ -781,6 +782,56 @@ static authz_status jwtclaimarray_check_authorization(request_rec *r, const char
 
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~  AUTHENTICATION HANDLERS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~  */
+
+static int auth_jwt_cdn_handler(request_rec *r){
+	if(!r->handler || strcmp(r->handler, JWT_CDN_HANDLER)){
+		return DECLINED;
+	}
+
+	ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(55200)
+							"auth_jwt authn: authentication handler is handling authentication");
+
+	const int delivery_type = (strlen(authSubType) == 0 || strcmp(authSubType, "-bearer") == 0) ? 2 :
+		strcmp(authSubType, "-cookie") == 0 ? 4 :
+		strcmp(authSubType, "-both") == 0 ? 6 :
+		0;
+
+	if(delivery_type & 4 && !token_str){
+		int cookie_remove = get_config_int_value(r, dir_cookie_remove);
+		const char* cookie_name = (char *)get_config_value(r, dir_cookie_name);
+		const char* cookieToken;
+
+		ap_cookie_read(r, cookie_name, &token_str, cookie_remove);
+
+		if(!token_str) {
+			logCode = APLOGNO(55409);
+			logStr = "auth_jwt authn: missing authorization cookie";
+		}
+	}
+
+	if(!token_str){
+		char* token;
+		rv = create_token(r, &token, sent_values[USER_INDEX]);
+		if(rv == OK){
+			char* delivery_type = (char *)get_config_value(r, dir_delivery_type);
+
+			if (delivery_type && strcmp(delivery_type, COOKIE_DELIVERY) == 0) {
+				char* cookie_name = (char *)get_config_value(r, dir_cookie_name);
+				char* cookie_attr = (char *)get_config_value(r, dir_cookie_attr);
+
+				ap_cookie_write(r, cookie_name, token, cookie_attr, 0,
+					r->headers_out, NULL);
+			} else {
+				apr_table_setn(r->err_headers_out, "Content-Type", "application/json");
+				ap_rprintf(r, "{\"token\":\"%s\"}", token);
+			}
+
+			free(token);
+		}
+	}
+
+	return rv;
+}
 
 
 static int auth_jwt_login_handler(request_rec *r){
