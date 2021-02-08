@@ -823,6 +823,9 @@ static int auth_jwt_cdn_handler(request_rec *r){
 		strcmp(authSubType, "-both") == 0 ? 6 :
 		0;
 
+	char* logCode = APLOGNO(55401);
+	char* logStr = "auth_jwt authn: unexpected error";
+
 	if(delivery_type & 4 && !token_str){
 		int cookie_remove = get_config_int_value(r, dir_cookie_remove);
 		const char* cookie_name = (char *)get_config_value(r, dir_cookie_name);
@@ -838,7 +841,7 @@ static int auth_jwt_cdn_handler(request_rec *r){
 
 	if(!token_str){
 		char* token;
-		rv = create_token(r, &token, sent_values[USER_INDEX]);
+		rv = create_token(r, &token, "cdn");
 		if(rv == OK){
 			char* delivery_type = (char *)get_config_value(r, dir_delivery_type);
 
