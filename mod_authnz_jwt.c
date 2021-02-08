@@ -791,6 +791,33 @@ static int auth_jwt_cdn_handler(request_rec *r){
 	ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(55200)
 							"auth_jwt authn: authentication handler is handling authentication");
 
+	const char *current_auth = NULL;
+	current_auth = ap_auth_type(r);
+	int rv;
+
+	if (!current_auth || strncmp(current_auth, "jwt", 3) != 0) {
+		return DECLINED;
+	}
+
+	ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(55400)
+							"auth_jwt: checking authentication with token...");
+
+	/* We need an authentication realm. */
+	if (!ap_auth_name(r)) {
+		ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(55401)
+					"need AuthName: %s", r->uri);
+		return HTTP_INTERNAL_SERVER_ERROR;
+	}
+
+	r->ap_auth_type = (char *) current_auth;
+
+	const char* token_str = 0;
+
+	const char* authSubType = current_auth + 3;
+
+	ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(55400)
+							"auth_jwt: authSubType %s", authSubType);
+
 	const int delivery_type = (strlen(authSubType) == 0 || strcmp(authSubType, "-bearer") == 0) ? 2 :
 		strcmp(authSubType, "-cookie") == 0 ? 4 :
 		strcmp(authSubType, "-both") == 0 ? 6 :
